@@ -9,7 +9,7 @@ module Rack
     end
 
     def call(env)
-      if @allow_all || white_listed?(env)
+      if @allow_all || ping?(env) || white_listed?(env)
         @app.call(env)
       else
         [ 403, {"Content-Type" => "text/html"}, ["<h1>Access Not Allowed</h1><p>You are not allowed to view this site.</p>"] ]
@@ -17,6 +17,10 @@ module Rack
     end
 
     private
+
+    def ping?(env)
+      env['PATH_INFO'].include?('ping')
+    end
 
     def process_yaml_data(yaml_file)
       file_path = yaml_file.nil? ? Rails.root.join('config','whitelist.yml') : Rails.root.join(yaml_file)
@@ -26,10 +30,11 @@ module Rack
     end
 
     def white_listed?(env)
-      if @ip_addresses.include?(env["REMOTE_ADDR"])
+      ip = env["HTTP_X_FORWARDED_FOR"].split(",").first
+      if @ip_addresses.include?(ip)
         return true
       else
-        Rails.logger.info "IP Whitelist Denied for IP: #{env["REMOTE_ADDR"].inspect}"
+        Rails.logger.info "IP Whitelist Denied for IP: #{ip}"
         return false
       end
     end
